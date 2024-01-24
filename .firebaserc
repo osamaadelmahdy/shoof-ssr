@@ -1,8 +1,5 @@
 {
   "projects": {
-    "default": "shoof-doctor-staging",
-    "shoof-ssr": "shoof-ssr"
-  },
-  "targets": {},
-  "etags": {}
+    "default": "shoof-doctor-staging"
+  }
 }

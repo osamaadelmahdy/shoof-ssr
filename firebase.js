@@ -1,20 +1,18 @@
 import { initializeApp } from "firebase/app";
-
-import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCoCXPDrcyrkgXIiNXr6L_Q_vZjFllvAFw",
-  authDomain: "shoof-ssr.firebaseapp.com",
-  projectId: "shoof-ssr",
-  storageBucket: "shoof-ssr.appspot.com",
-  messagingSenderId: "1014024251125",
-  appId: "1:1014024251125:web:b79cb4266043ae2a9747bc",
-  measurementId: "G-ZV4TMD0PV7",
+  apiKey: "AIzaSyAS3KYoOstjAeKv4qdsSYehRI7eezJDVpQ",
+  authDomain: "shoof-doctor-staging.firebaseapp.com",
+  databaseURL: "https://shoof-doctor-staging-default-rtdb.firebaseio.com",
+  projectId: "shoof-doctor-staging",
+  storageBucket: "shoof-doctor-staging.appspot.com",
+  messagingSenderId: "325831426037",
+  appId: "1:325831426037:web:f74cb6cf7243a862732abc",
+  measurementId: "G-PLR3Z1RRN1",
 };
-const app = initializeApp(firebaseConfig);
 
-// const analytics = getAnalytics(app);
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 export { db };

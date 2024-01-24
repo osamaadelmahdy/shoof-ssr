@@ -1,0 +1,594 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function getPermissionData(patientId) {
+      return get(/databases/$(database)/documents/permissions/$(patientId)/doctors/$(request.auth.uid)).data;
+    }
+
+    function getBookingDataFromRequest(data) {
+      return get(/databases/$(database)/documents/bookings/$(data['bookingId'])).data;
+    }
+
+    function getLabReferralDataFromRequest() {
+    return get(/databases/$(database)/documents/labReferrals/$(request.resource.data['referralId'])).data;
+    }
+
+    function getRadioReferralDataFromRequest() {
+    return get(/databases/$(database)/documents/radioReferrals/$(request.resource.data['referralId'])).data;
+    }
+
+    // STATIC DATA
+    match /specialties/{specialtyId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /insurance/{insuranceId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /insurCategories/{categoryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /dialogs/{dialogId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /certificateCategories/{categoryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /certificateTypes/{typeId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /labCategories/{categoryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /labCommercialCategories/{categoryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /labServices/{serviceId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /radioCategories/{categoryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /radioCommercialCategories/{categoryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /radioServices/{serviceId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /governorates/{governorateId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /areas/{areaId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /nationalities/{nationalityId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // PROFILE DATA
+    match /runtime/{userId}/sessions/{sessionId} {
+      allow get: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+    match /patients/{userId} {
+      // allow read: if
+      //   isOwner(userId) ||
+      //   isAdmin()       ||
+      //   isDoctor()      ||
+      //   isLab()         ||
+      //   isRadio();
+      allow read: if true;
+      allow create: if isOwner(userId) && testingFalse() && request.resource.data['verified'] == true;
+      allow update: if isOwner(userId) && cantChangeVerifiedAndTesting();
+      allow delete: if false;
+    }
+    match /healthRecords/{userId} {
+      allow read: if true;
+        // isOwner(userId) ||
+        // isAdmin() ||
+        // isDoctor() ||
+        // isAuthorized(getPermissionData(userId));
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false;
+    }
+    match /doctors/{doctorId} {
+       allow get: if true;
+      // allow list: if isAdmin() || resource.data.verified == true;
+      // allow create: if isOwner(doctorId) && testingFalse() && cantChangeVerified();
+      // allow update: if isOwner(doctorId) && cantChangeVerifiedAndTesting();
+       allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+    match /_labs/{labId} {
+      allow list: if isAdmin() || resource.data.verified == true;
+    }
+    match /_radios/{radioId} {
+      allow list: if isAdmin() || resource.data.verified == true;
+    }
+    match /labs/{labId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isOwner(labId) && testingFalse() && cantChangeVerified();
+      allow update: if isOwner(labId) && cantChangeVerifiedAndTesting();
+      allow delete: if false;
+    }
+    match /radios/{radioId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isOwner(radioId) && testingFalse() && cantChangeVerified();
+      allow update: if isOwner(radioId) && cantChangeVerifiedAndTesting();
+      allow delete: if false;
+    }
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // DYNAMIC DATA
+    match /schedules/{doctorId} {
+      allow read: if true;
+      allow write: if isOwner(doctorId);
+    }
+    match /schedules/{doctorId}/weeks/{weekId} {
+      allow read: if true;
+      allow write: if isOwner(doctorId);
+    }
+    match /bookings/{bookingId} {
+      allow read: if true;
+        // isLoggedInIdInField('doctorId') ||
+        // isLoggedInIdInField('patientId') ||
+        // isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if false;
+      allow update: if
+        (isLoggedInIdInField('doctorId') && doctorCanUpdateBooking()) ||
+        (isLoggedInIdInField('patientId') && patientCanUpdateBooking());
+      allow delete: if isLoggedInIdInField('doctorId');
+    }
+    match /unrealizedBookings/{bookingId} {
+      allow read: if
+        isLoggedInIdInField('doctorId') ||
+        isLoggedInIdInField('patientId');
+      allow write: if false;
+    }
+    match /observations/{observationId} {
+      allow read: if true;
+        // isLoggedInIdInField('doctorId') ||
+        // isLoggedInIdInField('patientId') ||
+        // isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if true;
+        // isDoctor() &&
+        // doctorCanCreateMedicalDocs(getBookingDataFromRequest(request.resource.data), createMedicalDocFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(request.resource.data));
+      allow update: if true;
+        // doctorCanUpdateMedicalDocs(updateMedicalDocFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data));
+      allow delete: if false;
+    }
+    match /diagnoses/{diagnosisId} {
+      allow read: if true;
+        // isLoggedInIdInField('doctorId') ||
+        // isLoggedInIdInField('patientId') ||
+        // isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if true;
+        // isDoctor() &&
+        // doctorCanCreateMedicalDocs(getBookingDataFromRequest(request.resource.data), createMedicalDocFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(request.resource.data));
+      allow update: if true;
+        // doctorCanUpdateMedicalDocs(updateMedicalDocFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data));
+      allow delete: if false;
+    }
+    match /prescriptions/{prescriptionId} {
+      allow read: if true;
+        // isLoggedInIdInField('doctorId') ||
+        // isLoggedInIdInField('patientId') ||
+        // isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if true;
+        // isDoctor() &&
+        // doctorCanCreateMedicalDocs(getBookingDataFromRequest(request.resource.data), createMedicalDocFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(request.resource.data));
+      allow update: if
+        doctorCanUpdateMedicalDocs(updateMedicalDocFields()) &&
+        isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data));
+      allow delete: if false;
+    }
+    match /doctorReferrals/{referralId} {
+      allow read: if
+        isLoggedInIdInField('doctorId') ||
+        isLoggedInIdInField('patientId') ||
+        isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if true;
+        // isDoctor() &&
+        // doctorCanCreateMedicalDocs(getBookingDataFromRequest(request.resource.data), createDoctorReferralFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(request.resource.data));
+      allow update: if
+        doctorCanUpdateMedicalDocs(updateDoctorReferralFields()) &&
+        isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data)) ||
+        (
+          isLoggedInIdInField('patientId') &&
+          checkRequestKeys(['status', 'updatedAt']) &&
+          request.resource.data['status'] == 'used'
+        );
+      allow delete: if
+        isLoggedInIdInField('doctorId') &&
+        resource.data['status'] == 'open' &&
+        isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data));
+    }
+    match /labReferrals/{referralId} {
+      allow read: if
+        isLoggedInIdInField('doctorId') ||
+        isLoggedInIdInField('patientId') ||
+        isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if true
+        // isDoctor() &&
+        // doctorCanCreateMedicalDocs(getBookingDataFromRequest(request.resource.data), createLabRadioReferralFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(request.resource.data));
+      allow update: if
+        doctorCanUpdateMedicalDocs(updateLabRadioReferralFields()) &&
+        isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data)) ||
+        (
+        isLoggedInIdInField('patientId') &&
+        checkRequestKeys(['status', 'updatedAt']) &&
+        request.resource.data['status'] == 'used'
+        ) ||
+        (
+        isLoggedInIdInField('patientId') &&
+        request.resource.data['status'] == 'open'
+        ) ||
+        request.auth.uid in resource.data['institutionsId'];
+      allow delete: if
+        isLoggedInIdInField('doctorId') &&
+        resource.data['status'] == 'open' &&
+        isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data));
+    }
+    match /radioReferrals/{referralId} {
+      allow read: if
+        isLoggedInIdInField('doctorId') ||
+        isLoggedInIdInField('patientId') ||
+        isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if true;
+        // isDoctor() &&
+        // doctorCanCreateMedicalDocs(getBookingDataFromRequest(request.resource.data), createLabRadioReferralFields()) &&
+        // isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(request.resource.data));
+      allow update: if
+        doctorCanUpdateMedicalDocs(updateLabRadioReferralFields()) &&
+        isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data)) ||
+        (
+        isLoggedInIdInField('patientId') &&
+        checkRequestKeys(['status', 'updatedAt']) &&
+        request.resource.data['status'] == 'used'
+        ) ||
+        (
+        isLoggedInIdInField('patientId') &&
+        request.resource.data['status'] == 'open'
+        ) ||
+        request.auth.uid in resource.data['institutionsId'];
+      allow delete: if
+        isLoggedInIdInField('doctorId') &&
+        resource.data['status'] == 'open' &&
+        isWithinTwoWeeksSinceBookingStartDate(getBookingDataFromRequest(resource.data));
+    }
+    match /labBookings/{bookingId} {
+      allow update: if true;
+      allow delete: if false;
+    }
+    match /radioBookings/{bookingId} {
+      allow update: if true;
+      allow delete: if false;
+    }
+    match /labBookings/{referralId} {
+      allow read: if true;
+        // isLoggedInIdInField('labId') ||
+        // isLoggedInIdInField('patientId') ||
+        // isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if patientCanCreateBooking(createLabBookingFields());
+      allow update: if
+        isLoggedInIdInField('patientId') ||
+        isLab() &&
+        isLoggedInIdInField('labId') &&
+        requireRequestKeys(['pdfUrl', 'status', 'updatedAt']) &&
+        request.resource.data['status'] == 'delivered';
+      allow delete: if false;
+    }
+    match /radioBookings/{referralId} {
+      allow read: if true;
+        // isLoggedInIdInField('radioId') ||
+        // isLoggedInIdInField('patientId') ||
+        // isAuthorized(getPermissionData(resource.data['patientId']));
+      allow create: if patientCanCreateBooking(createRadioBookingFields());
+      allow update: if
+        isLoggedInIdInField('patientId') ||
+        isRadio() &&
+        isLoggedInIdInField('radioId') &&
+        requireRequestKeys(['pdfUrl', 'status', 'updatedAt']) &&
+        request.resource.data['status'] == 'delivered';
+      allow delete: if false;
+    }
+    match /paymentOrders/{orderId} {
+      allow read: if isLoggedInIdInField('userId');
+      allow write: if false;
+    }
+    match /paymentWallets/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+
+      match /logs/{logId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    // NOTIFICATIONS
+    match /notifications/PATIENT/{doc=**} {
+      allow read: if isLoggedIn();
+      allow write: if false;
+    }
+    match /notifications/DOCTOR/{doc=**} {
+      allow read: if isDoctor();
+      allow write: if false;
+    }
+    match /notifications/LAB/{doc=**} {
+      allow read: if isLab();
+      allow write: if false;
+    }
+    match /notifications/RADIO/{doc=**} {
+      allow read: if isRadio();
+      allow write: if false;
+    }
+    match /notifications/ADMIN/{doc=**} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // OTHER
+    match /publicConfigs/{key=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /secretConfigs/{key=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+    match /dumps/{dumpId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /nationalities/{nationalityId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /notifications/ALL/{doc=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /notifications/PATIENT/{doc=**} {
+        allow read: if isLoggedIn();
+      allow write: if false;
+    }
+    match /notifications/DOCTOR/{doc=**} {
+        allow read: if isDoctor();
+      allow write: if false;
+    }
+    match /notifications/LAB/{doc=**} {
+       allow read: if isLab();
+      allow write: if false;
+    }
+    match /notifications/RADIO/{doc=**} {
+        allow read: if isRadio();
+      allow write: if false;
+    }
+    match /notifications/ADMIN/{doc=**} {
+        allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
+
+function hasProp(obj, prop) {
+  return prop in obj.keys();
+}
+
+function hasPropEq(obj, prop, value) {
+  return hasProp(obj, prop) && obj[prop] == value;
+}
+
+function isLoggedIn() {
+  return request.auth.uid != null;
+}
+
+function isLoggedInIdInField(fieldName) {
+  return hasPropEq(resource.data, fieldName, request.auth.uid);
+}
+
+function isOwner(userId) {
+  return request.auth.uid == userId || hasPropEq(resource.data, 'userId', request.auth.uid);
+}
+
+function isAdmin() {
+  return hasPropEq(request.auth.token, 'admin', true);
+}
+
+function isPatient() {
+  return hasPropEq(request.auth.token, 'patient', true);
+}
+
+function isDoctor() {
+  return hasPropEq(request.auth.token, 'doctor', true);
+}
+
+function isLab() {
+  return hasPropEq(request.auth.token, 'lab', true);
+}
+
+function isRadio() {
+  return hasPropEq(request.auth.token, 'radio', true);
+}
+
+function checkCreatedAt() {
+  return request.resource.data['createdAt'] == request.time;
+}
+
+function checkUpdatedAt() {
+  return request.resource.data['updatedAt'] == request.time;
+}
+
+function cantChangeVerified() {
+  return !('verified' in request.resource.data) || request.resource.data['verified'] == resource.data['verified'];
+}
+
+function cantChangeVerifiedAndTesting() {
+  return cantChangeVerified() && request.resource.data['testing'] == resource.data['testing'];
+}
+
+function testingFalse() {
+  return request.resource.data['testing'] == false;
+}
+
+function maybeResourceData() {
+  return resource != null ? resource.data : {};
+}
+
+
+function checkRequestKeys(allowedKeys) {
+  let mapDiff = request.resource.data.diff(maybeResourceData());
+  let diff = mapDiff.changedKeys().union(mapDiff.addedKeys());
+  return checkRequestKeysFromDiff(allowedKeys, diff);
+}
+
+function checkRequestKeysFromDiff(allowedKeys, diff) {
+  return diff.hasOnly(allowedKeys) && (
+    (!('createdAt' in diff)) || checkCreatedAt()
+  ) && (
+    (!('updatedAt' in diff)) || checkUpdatedAt()
+  );
+}
+
+function requireRequestKeys(allowedKeys) {
+  let mapDiff = request.resource.data.diff(maybeResourceData());
+  let diff = debug(mapDiff).changedKeys().union(mapDiff.addedKeys());
+  return (
+    checkRequestKeysFromDiff(allowedKeys, diff) &&
+    diff.hasAll(allowedKeys)
+  )
+}
+
+function isWithinTwoWeeksSinceBookingStartDate(bookingData) {
+  return request.time.toMillis() < (bookingData['startDate'].toMillis() + duration.value(2, 'w').seconds() * 1000);
+}
+
+function isAuthorized(permissionData) {
+  return permissionData.since <= request.time && request.time <= permissionData.until;
+}
+
+function createMedicalDocFields() {
+  return ['bookingId', 'doctorId', 'patientId', 'content', 'createdAt', 'updatedAt'];
+}
+
+function updateMedicalDocFields() {
+  return ['content', 'updatedAt'];
+}
+
+function createDoctorReferralFields() {
+  return ['bookingId', 'doctorId', 'patientId', 'specialtyId', 'medTitle', 'note', 'status', 'createdAt', 'updatedAt'];
+}
+
+function updateDoctorReferralFields() {
+  return ['specialtyId', 'medTitle', 'note', 'updatedAt'];
+}
+
+function createLabRadioReferralFields() {
+  return ['bookingId', 'doctorId', 'patientId', 'categoryId', 'serviceId', 'note', 'status', 'createdAt', 'updatedAt'];
+}
+
+function updateLabRadioReferralFields() {
+  return ['categoryId', 'serviceId', 'note', 'updatedAt'];
+}
+
+function createLabBookingFields() {
+  return ['patientId', 'labId', 'serviceId', 'serviceIds', 'status', 'note', 'createdAt', 'updatedAt', 'referralId', 'bookingId'];
+}
+
+function createRadioBookingFields() {
+  return ['patientId', 'radioId', 'serviceId', 'serviceIds', 'status', 'note', 'createdAt', 'updatedAt', 'referralId', 'bookingId'];
+}
+
+function doctorCanUpdateBooking() {
+  return checkRequestKeys(['complaint', 'status', 'updatedAt', 'doctorDetails']) &&
+    (
+      (!('status' in request.resource.data)) || (
+        request.resource.data['status'] == 'going' &&
+        resource.data['status'] == 'opened'
+      ) || (
+        request.resource.data['status'] == 'finished' &&
+        resource.data['status'] == 'going'
+      ) || (
+        request.resource.data['status'] == 'going' &&
+        resource.data['status'] == 'going'
+      )	|| (
+        request.resource.data['status'] == 'finished' &&
+        resource.data['status'] == 'finished'
+      )
+    );
+}
+
+function patientCanUpdateBooking() {
+  return checkRequestKeys(['complaint', 'status', 'updatedAt', 'rating']) &&
+    (
+      (!('status' in request.resource.data)) || (
+        request.resource.data['status'] == 'going' &&
+        resource.data['status'] == 'opened'
+      ) || (
+        request.resource.data['status'] == 'finished' &&
+        resource.data['status'] == 'finished'
+      ) || (
+        request.resource.data['status'] == 'going' &&
+        resource.data['status'] == 'going'
+      )
+    );
+}
+
+function doctorCanCreateMedicalDocs(bookingData, allowedKeys) {
+  return requireRequestKeys(allowedKeys) &&
+    bookingData['patientId'] == request.resource.data['patientId'] &&
+    bookingData['doctorId'] == request.resource.data['doctorId'] &&
+    bookingData['doctorId'] == request.auth.uid;
+}
+
+function doctorCanUpdateMedicalDocs(allowedKeys) {
+  return checkRequestKeys(allowedKeys) &&
+    resource.data['doctorId'] == request.auth.uid;
+}
+
+function patientCanCreateBooking(allowedKeys) {
+  return requireRequestKeys(allowedKeys) &&
+    request.resource.data['patientId'] == request.auth.uid &&
+    request.resource.data['status'] == 'undelivered';
+}
+
+function patientCanCreateBookingWithReferral(referralData, allowedKeys) {
+  return requireRequestKeys(allowedKeys) &&
+    referralData['serviceId'] == request.resource.data['serviceId'] &&
+    referralData['patientId'] == request.auth.uid &&
+    request.resource.data['patientId'] == request.auth.uid &&
+    request.resource.data['status'] == 'undelivered';
+}

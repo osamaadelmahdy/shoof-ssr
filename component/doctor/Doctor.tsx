@@ -1,4 +1,5 @@
-import React from "react";
+'use client';
+import React, { useEffect } from "react";
 
 import { doc, setDoc, getDoc, getDocs, collection } from "firebase/firestore";
 import { db } from "@/firebase";
@@ -21,14 +22,13 @@ async function addData(
   return { result, error };
 }
 
-async function getData(collection: string, id: string) {
-  const docRef = doc(db, collection, id);
+async function getDoctorById(id: string) {
+  const docRef = doc(db, "doctors", id);
   const docSnap = await getDoc(docRef);
   let result = null;
   let error = null;
 
   if (docSnap.exists()) {
-    console.log("Document data:", docSnap.data());
     result = docSnap.data();
   } else {
     console.log("No such document!");
@@ -38,19 +38,23 @@ async function getData(collection: string, id: string) {
 }
 
  async function getDoctors() {
-    const querySnapshot = await getDocs(collection(db, "Doctors"));
+    const querySnapshot = await getDocs(collection(db, "doctors"));
     const doctors = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     return doctors;
 }
 
-async function Test() {
-  const data: any = await getDoctors()
+ function Doctor({ params, searchParams }: any) {
+  useEffect(() => {
+    const fn = async () => {
+      const data: any = await getDoctorById('nxSKd2CXtvaWmngWRnz2Ia1iEGw2')
+      console.log(data.result)
+    }
+    fn()
+  })
 
-//   if (error) return <p>error</p>;
+  return <div>doctor data client</div>;
 
-  console.log(data);
 
-  return <div>{data[0].name}</div>;
 }
 
-export default Test;
+export default Doctor;
