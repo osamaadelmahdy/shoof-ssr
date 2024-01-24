@@ -44,7 +44,7 @@ async function getData(collection: string, id: string) {
 }
 
 async function Test() {
-  const data = await getDoctors()
+  const data: any = await getDoctors()
 
 //   if (error) return <p>error</p>;
 
