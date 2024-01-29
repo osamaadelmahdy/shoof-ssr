@@ -13,13 +13,13 @@ export default async function Page({ params }: any) {
   return (
     <>
       <p>doctor info</p>
-      <p>{doctorData.result.name.ar}</p>
-      <p>{doctorData.result.about.ar}</p>
+      <p>{doctorData.result.name.en}</p>
+      <p>{doctorData.result.about.en}</p>
       <Image
         src={doctorData.result.photoURL}
         width={1200}
         height={630}
-        alt={doctorData.result.name.ar}
+        alt={doctorData.result.name.en}
        
       />
     </>
@@ -35,9 +35,9 @@ export async function generateMetadata(
   const data: any = await getDoctorById(params.id);
   console.log(JSON.stringify(data.result), "data from doctor id page");
   return {
-    title: data.result.name.ar,
+    title: data.result.name.en,
     openGraph: {
-      title: data.result.name.ar,
+      title: data.result.name.en,
       description: data.result.about.ar,
       images: [
         {
