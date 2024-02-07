@@ -1,3 +1,5 @@
+import ClientDepugger from "@/component/ClientDepugger";
+import GoToDoctorBtn from "@/component/GoToDoctorBtn";
 import { db } from "@/firebase";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { Metadata, ResolvingMetadata } from "next";
@@ -10,19 +12,32 @@ type Props = {
 
 export default async function Page({ params }: any) {
   const doctorData: any = await getDoctorById(params.id);
+
+  const options = {
+    consultant: "استشاري",
+    practitioner: "ممارس",
+    specialist: "أخصائي",
+  };
+
   return (
-    <>
-      <p>doctor info</p>
-      <p>{doctorData.result.name.en}</p>
-      <p>{doctorData.result.about.en}</p>
+    <div className="w-full  h-screen flex flex-col justify-center items-center gap-2">
       <Image
         src={doctorData.result.photoURL}
-        width={1200}
-        height={630}
+        width={300}
+        height={300}
+        style={{ borderRadius: "10%", objectFit: "cover" }}
         alt={doctorData.result.name.en}
-       
+        priority
       />
-    </>
+
+      <p className="text-3xl font-bold">{doctorData.result.name.ar}</p>
+      <p className="text-3xl">
+        {options[doctorData.result.medTitle as keyof typeof options]}
+      </p>
+      <p className="text-xl text-center">{doctorData.result.about.ar}</p>
+
+      <GoToDoctorBtn />
+    </div>
   );
 }
 
@@ -30,10 +45,8 @@ export async function generateMetadata(
   { params, searchParams }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  console.log(params, "params from doctor id page");
   // Fetch data from Firestore
   const data: any = await getDoctorById(params.id);
-  console.log(JSON.stringify(data.result), "data from doctor id page");
   return {
     title: data.result.name.en,
     openGraph: {
@@ -57,7 +70,6 @@ async function getDoctorById(id: string): Promise<any> {
   let error = null;
 
   if (docSnap.exists()) {
-    console.log("Document data:", docSnap.data());
     result = docSnap.data();
   } else {
     console.log("No such document!");
